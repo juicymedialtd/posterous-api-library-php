@@ -1,226 +1,253 @@
-<?php /*
-Name: Posterous API Library
-Description: Object-oriented PHP class for accessing the Posterous API
-Author: Calvin Freitas
-Version: 0.1.0
-Author URI: http://calvinf.com/
-License:  MIT License (see LICENSE) http://creativecommons.org/licenses/MIT/
-Warranties: None
-Last Modified: December 07, 2009
-Requirements: PHP 5 or higher.
-*/
+<?php 
+/**
+ * Posterous v2 API
+ * Difference: REST based queries with JSON response
+ * 
+ * Based on the v1 API work by Calvin Freitas:
+ * http://calvinf.com/projects/posterous-api-library-php/
+ * 
+ * Current available API calls:
+ * http://posterous.com/api
+ * 
+ * @author 		Juicy Media Ltd (info@juicymedia.co.uk)
+ * @package		PosterousAPI
+ * @copyright	Copyright (C) 2005 - 2011 Juicy Media Ltd, All rights reserved.
+ * @license		GNU General Public License version 2 or later; see LICENSE.txt
+ */
 
-/* Define Static Variables */
-define('POSTEROUS_API_LIBRARY_VERSION','1.0');
-define('POSTEROUS_API_LIBRARY_RELEASE_DATE','December 07, 2009');
-define('POSTEROUS_API_LIBRARY_URL','http://calvinf.com/projects/posterous-api-library-php/');
-define('POSTEROUS_API_LIBRARY_AUTHOR_NAME','Calvin Freitas');
-define('POSTEROUS_API_LIBRARY_AUTHOR_URL','http://calvinf.com/');
-define('POSTEROUS_API_LIBRARY_AUTHOR_EMAIL','cal@calvinfreitas.com');
-
-define('POSTEROUS_API_URL', 'http://posterous.com/api/');
+// the current Posterous API end-point
+define('POSTEROUS_API_URL', 'http://posterous.com/api/2/sites/');
 
 // ensure Curl extension installed
 if(!extension_loaded("curl")) {
-	throw(new Exception("The Curl extension for PHP is required for PosterousAPI to work."));
+	throw(new Exception("The cURL extension for PHP is required for PosterousAPI to work."));
 }
 
-/* Useful to catch this exception separately from standard PHP Exceptions */
+// catch exceptions
 class PosterousException extends Exception {}
 
-/* This class contains functions for calling the Posterous API */
+// This class contains functions for calling the Posterous API
 class PosterousAPI {
-	private $user;
-	private $pass;
+	
+	private $_site_id;
+	private $_token;
+	private $_user;
+	private $_pass;
 
-	function __construct($user = NULL, $pass = NULL) {
-		$this->user = $user;
-		$this->pass = $pass;
+	/**
+	 * 
+	 * Main class constructor setting base values used by API.
+	 * Usage: $api = new PosterousAPI($site,$token,$user,$pass);
+	 * 
+	 * @param string $site_id
+	 * @param string $token
+	 * @param string $user
+	 * @param string $pass
+	 */
+	function __construct($site_id = NULL, $token = NULL, $user = NULL, $pass = NULL) {
+		$this->_set_site_id($site_id);
+		$this->_set_token($token);
+		$this->_set_user($user);
+		$this->_set_pass($pass);
 	}
-
-	/* Reading Methods - http://posterous.com/api/reading */
-	function getsites() {
-		$api_method = 'getsites';
-		$xml = $this->_call( $api_method );
-		return $xml;
+	
+	/**
+	 * Get the site_id value 
+	 * @return string
+	 */
+	private function _get_site_id(){
+		return $this->_site_id;
 	}
-
-	function readposts($args) {
-		$api_method = 'readposts';
-
-		$valid_args = array('hostname','site_id','num_posts','page','tag');
-		$method_args = $this->_validate($args, $valid_args);
-
-		$xml = $this->_call( $api_method, $method_args );
-		return $xml;
+	
+	/**
+	 * Set the site_id value
+	 * @param string $site_id
+	 */
+	private function _set_site_id($site_id){
+		$this->_site_id = $site_id;
+	}	
+	
+	/**
+	 * Get the token value 
+	 * @return string
+	 */
+	private function _get_token(){
+		return $this->_token;
 	}
+	
+	/**
+	 * Set the token value
+	 * @param string $token
+	 */
+	private function _set_token($token){
+		$this->_token = $token;
+	}	
 
-	function gettags($args) {
-		$api_method = 'gettags';
-
-		$valid_args = array('hostname','site_id');
-		$method_args = $this->_validate($args, $valid_args);
-
-		$xml = $this->_call( $api_method, $method_args );
-		return $xml;
+	/**
+	 * Get the user value 
+	 * @return string
+	 */
+	private function _get_user(){
+		return $this->_user;
 	}
-
-	/* Posting Methods - http://posterous.com/api/posting */
-	function newpost($args) {
-		$api_method = 'newpost';
-
-		if (!$this->_auth()) {
-			throw new PosterousException('Posterous API call "' . $api_method . '" requires authentication.');
-		}
-
-		$valid_args = array('site_id','media','title','body','autopost','private','date','tags','source','sourceLink');
-		$method_args = $this->_validate($args, $valid_args);
-
-		$xml = $this->_call( $api_method, $method_args );
-		return $xml;
+	
+	/**
+	 * Set the user value
+	 * @param string $user
+	 */
+	private function _set_user($user){
+		$this->_user = $user;
+	}	
+	
+	/**
+	 * Get the pass value 
+	 * @return string
+	 */
+	private function _get_pass(){
+		return $this->_pass;
 	}
-
-	function updatepost($args) {
-		$api_method = 'updatepost';
-
-		if (!$this->_auth()) {
-			throw new PosterousException('Posterous API call "' . $api_method . '" requires authentication.');
-		}
-
-		$valid_args = array('post_id','media','title','body');
-		$method_args = $this->_validate($args, $valid_args);
-
-		$xml = $this->_call( $api_method, $method_args );
-		return $xml;
-	}
-
-	function newcomment($args) {
-		$api_method = 'newcomment';
-
-		$valid_args = array('post_id','comment','name','email','date');
-		$method_args = $this->_validate($args, $valid_args);
-
-		$xml = $this->_call( $api_method, $method_args );
-		return $xml;
-	}
-
-	/* Post.ly Methods - http://posterous.com/api/postly */
-
-	function getpost($args) {
-		$api_method = 'getpost';
-
-		$valid_args = array('id');
-		$method_args = $this->_validate($args, $valid_args);
-
-		$xml = $this->_call( $api_method, $method_args );
-		return $xml;
-	}
-
-	/* Twitter Methods - http://posterous.com/api/twitter */
-	function upload() {
-		$api_method = 'upload';
-
-		$valid_args = array('username','password','media','message','body','source','sourceLink');
-		$method_args = $this->_validate( $args, $method_args );
-
-		$xml = $this->_call( $api_method, $method_args );
-		return $xml;
-	}
-
-	function uploadAndPost() {
-		$api_method = 'uploadAndPost';
-
-		$valid_args = array('username','password','media','message','body','source','sourceLink');
-		$method_args = $this->_validate( $args, $method_args );
-
-		$xml = $this->_call( $api_method, $method_args );
-		return $xml;
-	}
-
-
-	/* Helper Functions */
-	private function _call($api_method, $method_args = NULL) {
-		$method_url = POSTEROUS_API_URL . $api_method;
-
-		$user = $this->user();
-		$pass = $this->pass();
-
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, $method_url);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-		curl_setopt($ch, CURLOPT_HEADER, false);
-		curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-
-		if (isset($user) && isset($pass) && $user != '' && $pass != '') {
-			curl_setopt($ch, CURLOPT_USERPWD, $user . ':' . $pass);
-		}
-
-		curl_setopt($ch, CURLOPT_POST, 1);
-
-		if ( is_array($method_args) && !empty($method_args) ) {
-			curl_setopt($ch, CURLOPT_POSTFIELDS, $method_args);
-		}
-
-		$data = curl_exec($ch);
-		//$response_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-		curl_close($ch);
-
-		$xml = '';
-		try {
-			$xml = new SimpleXMLElement($data);
-
-			$response_status = $xml['stat'];
-			if ($response_status == 'ok') {
-				return $xml;
-			}
-			elseif ($response_status == 'fail') {
-				throw new PosterousException('Error Code ' . $xml->err['code'] . ': ' . $xml->err['msg']);
-			}
-			else {
-				throw new PosterousException('Error: Invalid Posterous response status.');
-			}
-		}
-		catch (Exception $e) {
-			throw $e;
-		}
-	}
-
-	private function _validate($args, $valid_args) {
+	
+	/**
+	 * Set the pass value
+	 * @param string $pass
+	 */
+	private function _set_pass($pass){
+		$this->_pass = $pass;
+	}	
+	
+	/**
+	 * 
+	 * This checks the passed argument array for
+	 * matching 'valid' arguments
+	 * 
+	 * @param array $args
+	 * @param array $valid_args
+	 */
+	public function _validate($args, $valid_args) {
 		$method_args = array();
 		foreach($args as $key => $value) {
 			if( in_array($key, $valid_args) ) {
 				$method_args[$key] = $value;
 			}
 		}
-
 		return $method_args;
 	}
 
-	private function _auth() {
-		//checks if object has user & password, does not verify w/ Posterous
-		if (isset($this->user) && isset($this->pass) && $this->user != '' && $this->pass != '') {
-			return TRUE;
+	/**
+	 * 
+	 * This funciton is used to make the cURL call
+	 * to the Posterous API.
+	 * 
+	 * TODO: Update error catching as this is untested
+	 * TODO: Untested "post" element
+	 * 
+	 * @param string $api_method
+	 * @param array $method_args
+	 * @param string $call_method
+	 */
+	public function _call($api_method, $method_args = null, $call_method = null) {
+		$method_url = POSTEROUS_API_URL .$this->_get_site_id()."/". $api_method;
+		
+		$method_args['site_id'] = $this->_get_site_id();
+		$method_args['api_token'] = $this->_get_token();
+		
+		if (empty($method_args['site_id'])){
+			throw new PosterousException('Error: missing site_id.');
+		} elseif (empty($method_args['api_token'])){
+			throw new PosterousException('Error: missing api_token.');
 		}
-		else {
-			return FALSE;
+				
+		try {
+			$ch = curl_init();
+	        
+			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+			curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+			curl_setopt($ch, CURLOPT_HEADER, false);
+			curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);	
+			curl_setopt($ch, CURLOPT_USERPWD, $this->_get_user() . ':' . $this->_get_pass());
+			
+			// untested "post" element
+			if ($call_method == 'post'){
+				curl_setopt($ch, CURLOPT_URL, $method_url);
+				curl_setopt($ch, CURLOPT_POST, 1);
+				if ( is_array($method_args) && !empty($method_args) ) {
+					curl_setopt($ch, CURLOPT_POSTFIELDS, $method_args);
+				}				
+			} else {
+				// default action i.e. simple GET request
+				// generate URL-encoded query string from array
+				// Src: http://php.net/manual/en/function.http-build-query.php
+				$urlparams = http_build_query($method_args);			
+				curl_setopt($ch, CURLOPT_URL, $method_url."?".$urlparams);
+			}
+	 
+			$response_data = curl_exec($ch);
+			$response_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+			
+			if ($response_code <> 200){
+				throw new PosterousException('Error Code ' . $response_code . ': cURL connection error to posterous.');
+			}	
+			curl_close($ch);	
 		}
-	}
+		catch (Exception $e) {
+			throw $e;
+		}				
+		
+		// apply UTF8 encode to make sure JSON decode will work
+		$processed_data = json_decode(utf8_encode($response_data), true);
+		
+		if ($processed_data === null && json_last_error() !== JSON_ERROR_NONE) {
+		    throw new PosterousException('Error: Invalid JSON response.');
+		}
+		
+		return $processed_data;
+	}	
+}
 
-	/* Getters & Setters */
-	function user($user = NULL) {
-		if ($user) {
-			$this->user = $user;
-		}
-		return $this->user;
+class PosterousAPIPosts extends PosterousAPI {
+	
+	/**
+	 * Duplicate of main class constructor setting base values used by API.
+	 * Usage: $api = new PosterousAPIPosts($site,$token,$user,$pass);
+	 * 
+	 * @param string $site_id
+	 * @param string $token
+	 * @param string $user
+	 * @param string $pass
+	 */
+	function __construct($site_id = NULL, $token = NULL, $user = NULL, $pass = NULL) {	
+		parent::__construct($site_id, $token, $user, $pass);
 	}
+	
+	/**
+	 * This will obtain all posts based on the supplied "tag":
+	 * Usage: $output = $api->readpostsbytag(array('tag'=>$tag));
+	 *  
+	 * @param array $json_assoc_array
+	 */
+	public function readpostsbytag($args) {
+		$api_method = 'posts/public';
 
-	function pass($pass = NULL) {
-		if ($pass) {
-			$this->pass = $pass;
-		}
-		return $this->pass;
+		$valid_args = array('since_id','page','tag');
+		$method_args = $this->_validate($args, $valid_args);
+
+		$json_assoc_array = $this->_call( $api_method, $method_args );
+		return $json_assoc_array;
 	}
+	
+	/**
+	 * Get the tags of the given site
+	 * NB: should be in own extended class - seems pointless at the minute
+	 * 
+	 * @return array $json_assoc_array
+	 */
+	public function gettags() {
+		$api_method = 'tags';
+		$json_assoc_array = $this->_call( $api_method, null );
+		return $json_assoc_array;
+	}		
+	
+	
 }
 
 ?>
