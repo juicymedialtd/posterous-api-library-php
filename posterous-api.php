@@ -33,6 +33,7 @@ class PosterousAPI {
 	private $_token;
 	private $_user;
 	private $_pass;
+	private $_timeout;
 
 	/**
 	 * 
@@ -44,11 +45,12 @@ class PosterousAPI {
 	 * @param string $user
 	 * @param string $pass
 	 */
-	function __construct($site_id = NULL, $token = NULL, $user = NULL, $pass = NULL) {
+	function __construct($site_id = NULL, $token = NULL, $user = NULL, $pass = NULL, $timeout = 5) {
 		$this->_set_site_id($site_id);
 		$this->_set_token($token);
 		$this->_set_user($user);
 		$this->_set_pass($pass);
+		$this->_set_timeout($timeout);
 	}
 	
 	/**
@@ -116,6 +118,22 @@ class PosterousAPI {
 	}	
 	
 	/**
+	 * Set the cURL timeout value
+	 * @param integer $timeout
+	 */
+	private function _set_timeout($timeout){
+		$this->_timeout = $timeout;
+	}	
+
+	/**
+	 * Get the timeout value 
+	 * @return integer
+	 */
+	private function _get_timeout(){
+		return (int) $this->_timeout;
+	}	
+	
+	/**
 	 * 
 	 * This checks the passed argument array for
 	 * matching 'valid' arguments
@@ -161,7 +179,7 @@ class PosterousAPI {
 			$ch = curl_init();
 	        
 			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-			curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+			curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->_get_timeout());
 			curl_setopt($ch, CURLOPT_HEADER, false);
 			curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);	
 			curl_setopt($ch, CURLOPT_USERPWD, $this->_get_user() . ':' . $this->_get_pass());
