@@ -33,7 +33,9 @@ class PosterousAPI {
 	private $_token;
 	private $_user;
 	private $_pass;
-	private $_timeout;
+	private $_timeout = 10;
+	private $_connect_timeout = 10;
+	private $_useragent = "Posterous PHP API 1.0";
 
 	/**
 	 * 
@@ -45,12 +47,11 @@ class PosterousAPI {
 	 * @param string $user
 	 * @param string $pass
 	 */
-	function __construct($site_id = NULL, $token = NULL, $user = NULL, $pass = NULL, $timeout = 5) {
+	function __construct($site_id = NULL, $token = NULL, $user = NULL, $pass = NULL) {
 		$this->_set_site_id($site_id);
 		$this->_set_token($token);
 		$this->_set_user($user);
 		$this->_set_pass($pass);
-		$this->_set_timeout($timeout);
 	}
 	
 	/**
@@ -121,7 +122,7 @@ class PosterousAPI {
 	 * Set the cURL timeout value
 	 * @param integer $timeout
 	 */
-	private function _set_timeout($timeout){
+	public function _set_timeout($timeout){
 		$this->_timeout = $timeout;
 	}	
 
@@ -129,9 +130,25 @@ class PosterousAPI {
 	 * Get the timeout value 
 	 * @return integer
 	 */
-	private function _get_timeout(){
+	public function _get_timeout(){
 		return (int) $this->_timeout;
+	}
+
+	/**
+	 * Set the cURL connect timeout value
+	 * @param integer $ctimeout
+	 */
+	public function _set_connect_timeout($ctimeout){
+		$this->_connect_timeout = $ctimeout;
 	}	
+
+	/**
+	 * Get the connect timeout value 
+	 * @return integer
+	 */
+	public function _get_connect_timeout(){
+		return (int) $this->_connect_timeout;
+	}		
 	
 	/**
 	 * 
@@ -178,8 +195,10 @@ class PosterousAPI {
 		try {
 			$ch = curl_init();
 	        
+			curl_setopt($ch, CURLOPT_USERAGENT, $this->_useragent); 
 			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-			curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->_get_timeout());
+			curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->_get_connect_timeout());
+			curl_setopt($ch, CURLOPT_TIMEOUT, $this->_get_timeout());
 			curl_setopt($ch, CURLOPT_HEADER, false);
 			curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);	
 			curl_setopt($ch, CURLOPT_USERPWD, $this->_get_user() . ':' . $this->_get_pass());
